@@ -1,10 +1,11 @@
 import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
+import 'package:namer_app/setup/root.dart';
 import 'package:provider/provider.dart';
 import '../setup/signin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import '../setup/auth.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,7 +27,9 @@ class MyApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(
               seedColor: Color.fromARGB(255, 34, 255, 196)),
         ),
-        home: LoginPage(),
+        home: RootPage(
+          auth: Auth(),
+        ),
       ),
     );
   }
@@ -52,13 +55,23 @@ class MyAppState extends ChangeNotifier {
 }
 
 class MyHomePage extends StatefulWidget {
+  MyHomePage({required this.auth, required this.onSignedOut});
+  final BaseAuth auth;
+  final VoidCallback onSignedOut;
+  void _signOut() async {
+    try {
+      await auth.signOut();
+    } on Exception catch (e) {
+      print(e);
+    }
+  }
+
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
   int selectedIndex = 0;
-
   @override
   Widget build(BuildContext context) {
     Widget page;
