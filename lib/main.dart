@@ -58,9 +58,10 @@ class MyHomePage extends StatefulWidget {
   MyHomePage({required this.auth, required this.onSignedOut});
   final BaseAuth auth;
   final VoidCallback onSignedOut;
-  void _signOut() async {
+  void signOut() async {
     try {
       await auth.signOut();
+      onSignedOut();
     } on Exception catch (e) {
       print(e);
     }
@@ -77,7 +78,9 @@ class _MyHomePageState extends State<MyHomePage> {
     Widget page;
     switch (selectedIndex) {
       case 0:
-        page = GeneratorPage();
+        page = GeneratorPage(
+          onLogoutPressed: widget.signOut,
+        );
         break;
       case 1:
         page = FavoritesPage();
@@ -152,6 +155,8 @@ class FavoritesPage extends StatelessWidget {
 }
 
 class GeneratorPage extends StatelessWidget {
+  GeneratorPage({required this.onLogoutPressed});
+  final VoidCallback onLogoutPressed;
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
@@ -189,6 +194,18 @@ class GeneratorPage extends StatelessWidget {
               ),
             ],
           ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 20,
+              ),
+              ElevatedButton(
+                onPressed: onLogoutPressed,
+                child: Text('Logout'),
+              ),
+            ],
+          )
         ],
       ),
     );
