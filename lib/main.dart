@@ -1,11 +1,12 @@
 import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
+import 'package:namer_app/setup/firestore.dart';
 import 'package:namer_app/setup/root.dart';
 import 'package:provider/provider.dart';
-import '../setup/signin.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import '../setup/auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:namer_app/setup/auth.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +15,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -24,8 +25,8 @@ class MyApp extends StatelessWidget {
         title: 'Namer App',
         theme: ThemeData(
           useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-              seedColor: Color.fromARGB(255, 34, 255, 196)),
+          colorScheme: ColorScheme.fromSwatch()
+              .copyWith(primary: Color.fromARGB(255, 4, 32, 25)),
         ),
         home: RootPage(
           auth: Auth(),
@@ -36,21 +37,39 @@ class MyApp extends StatelessWidget {
 }
 
 class MyAppState extends ChangeNotifier {
-  var current = WordPair.random();
+  WordPair current = WordPair.random();
   void getNext() {
     current = WordPair.random();
     notifyListeners();
   }
 
-  var favorites = <WordPair>[];
+  final FirestoreService firestoreService = FirestoreService();
+  final FirebaseAuth firebaseAuth = FirebaseAuth.instance;
+  late String userId;
+  List<WordPair> favorites = [];
 
-  void toggleFavorite() {
-    if (favorites.contains(current)) {
-      favorites.remove(current);
-    } else {
-      favorites.add(current);
+  Future<void> init() async {
+    User? user = firebaseAuth.currentUser;
+    if (user != null) {
+      userId = user.uid;
+      favorites = await firestoreService.getFavorites(userId);
     }
-    notifyListeners();
+  }
+
+  void toggleFavorite() async {
+    User? user = firebaseAuth.currentUser;
+    if (user != null) {
+      userId = user.uid;
+      print('$userId');
+      if (favorites.contains(current)) {
+        favorites.remove(current);
+        await firestoreService.removeFavorite(userId, current);
+      } else {
+        favorites.add(current);
+        await firestoreService.addFavorite(userId, current);
+      }
+      notifyListeners();
+    }
   }
 }
 
@@ -58,11 +77,12 @@ class MyHomePage extends StatefulWidget {
   MyHomePage({required this.auth, required this.onSignedOut});
   final BaseAuth auth;
   final VoidCallback onSignedOut;
+
   void signOut() async {
     try {
       await auth.signOut();
       onSignedOut();
-    } on Exception catch (e) {
+    } catch (e) {
       print(e);
     }
   }
@@ -73,6 +93,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int selectedIndex = 0;
+
   @override
   Widget build(BuildContext context) {
     Widget page;
@@ -88,6 +109,7 @@ class _MyHomePageState extends State<MyHomePage> {
       default:
         throw UnimplementedError('no widget for $selectedIndex');
     }
+
     return LayoutBuilder(builder: (context, constraints) {
       return Scaffold(
         body: Row(
@@ -141,13 +163,14 @@ class FavoritesPage extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.all(20),
-          child: Text('You have '
-              '${appState.favorites.length} favorites:'),
+          child: Text(
+            'You have ${appState.favorites.length} favorites:',
+          ),
         ),
         for (var pair in appState.favorites)
           ListTile(
             leading: Icon(Icons.favorite),
-            title: Text(pair.asLowerCase),
+            title: Text(pair.asPascalCase),
           ),
       ],
     );
@@ -157,6 +180,7 @@ class FavoritesPage extends StatelessWidget {
 class GeneratorPage extends StatelessWidget {
   GeneratorPage({required this.onLogoutPressed});
   final VoidCallback onLogoutPressed;
+
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
@@ -205,7 +229,7 @@ class GeneratorPage extends StatelessWidget {
                 child: Text('Logout'),
               ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -214,18 +238,19 @@ class GeneratorPage extends StatelessWidget {
 
 class BigCard extends StatelessWidget {
   const BigCard({
-    super.key,
+    Key? key,
     required this.pair,
-  });
+  }) : super(key: key);
 
   final WordPair pair;
 
   @override
   Widget build(BuildContext context) {
     var theme = Theme.of(context);
-    var style = theme.textTheme.displayMedium!.copyWith(
+    var style = theme.textTheme.headline5!.copyWith(
       color: theme.colorScheme.onPrimary,
     );
+
     return Card(
       color: theme.colorScheme.primary,
       child: Padding(
