@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => MyAppState(),
+      create: (context) => MyAppState()..init(),
       child: MaterialApp(
         title: 'Namer App',
         theme: ThemeData(
@@ -153,26 +153,43 @@ class FavoritesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
 
-    if (appState.favorites.isEmpty) {
-      return Center(
-        child: Text('No favorites yet.'),
-      );
-    }
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(appState.userId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data == null) {
+          return Center(
+            child: CircularProgressIndicator(),
+          );
+        }
 
-    return ListView(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: Text(
-            'You have ${appState.favorites.length} favorites:',
-          ),
-        ),
-        for (var pair in appState.favorites)
-          ListTile(
-            leading: Icon(Icons.favorite),
-            title: Text(pair.asPascalCase),
-          ),
-      ],
+        var data = snapshot.data!.data() as Map<String, dynamic>;
+        var favorites = List<String>.from(data['favorites'] ?? []);
+
+        if (favorites.isEmpty) {
+          return Center(
+            child: Text('No favorites yet.'),
+          );
+        }
+
+        return ListView(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'You have ${favorites.length} favorites:',
+              ),
+            ),
+            for (var pair in favorites)
+              ListTile(
+                leading: Icon(Icons.favorite),
+                title: Text(pair),
+              ),
+          ],
+        );
+      },
     );
   }
 }
